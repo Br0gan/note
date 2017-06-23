@@ -1,5 +1,5 @@
 default:
-	if [ -f tester ]; then make clean; fi
+	if [ -f /usr/local/bin/note ]; then make clean; fi
 	make build 
 
 build:

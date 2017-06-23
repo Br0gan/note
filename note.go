@@ -20,17 +20,47 @@ func main() {
 }
 
 func helpMenu() {
-	fmt.Println("this is the help menu")
+	fmt.Println(`
+NAME
+note -- note taking utility
+
+SYNOPSIS
+note [note_dir note_file] [--find] [--list] [--get]
+
+DESCRIPTION
+Note taking utitlity to optimize your time with taking notes and looking up past notes.
+Note will make a folder of the first argument which should be general topic of the note
+and will open up the vim text editor of the second argument which should be a more
+specific name for your note. Once you save and quit the note will be saved in your NOTES_PATH.
+
+Example: taking a note about multiplication for math..
+
+note math multiplication
+
+note will be saved as ~/${NOTES_PATH}/math/multiplication
+
+FLAGS
+--find
+Prints the file path, line number, and search results of the string you are trying to find.
+i.e: note --find "some text to find"
+
+--list
+--get
+`)
 }
 
 func checkFlags() {
 	flag := os.Args[1]
-	switch flag {
-	case "--help":
+	switch {
+	case strings.Contains(flag, "--help") || strings.Contains(flag, "-h"):
 		helpMenu()
 		os.Exit(0)
-	case "--find":
+	case strings.Contains(flag, "--find") || strings.Contains(flag, "-f"):
 		searchNotes()
+	case strings.Contains(flag, "--list") || strings.Contains(flag, "-l"):
+		listNotes()
+	case strings.Contains(flag, "--get") || strings.Contains(flag, "-g"):
+		getNotes()
 	default:
 		noteHandler()
 	}
@@ -50,43 +80,64 @@ func noteHandler() {
 	}
 }
 
-func checkIfHelp(f string) {
-	if f == "--help" {
-		helpMenu()
-		os.Exit(0)
-	}
-}
-
-func checkIfFind(f string) {
-	if f == "--find" {
-		searchNotes()
-	}
-}
-
 func searchNotes() {
-	ns := []note{}
+	c := make(chan *note)
+
 	out, err := exec.Command("fgrep", "-rHni", os.Args[2], notesPath).Output()
 	if err != nil {
 		fmt.Println("search failed: ", err)
 	}
 
-	slice := strings.Split(string(out), "\n")
-	for i := 0; i < len(slice)-1; i++ {
-		n := &note{}
-		output := strings.TrimPrefix(slice[i], notesPath)
-		n.Path = strings.Split(output, ":")[0]
-		n.LineNum = strings.Split(output, ":")[1]
-		n.Context = strings.Split(output, ":")[2]
-		ns = append(ns, *n)
-	}
-	findOutput(ns)
+	go func() {
+		slice := strings.Split(string(out), "\n")
+		for i := 0; i < len(slice)-1; i++ {
+			output := strings.TrimPrefix(slice[i], notesPath)
+			n := &note{
+				Path:    strings.Split(output, ":")[0],
+				LineNum: strings.Split(output, ":")[1],
+				Context: strings.Split(output, ":")[2],
+			}
+			c <- n
+		}
+		close(c)
+	}()
+
+	findOutput(c)
 	os.Exit(0)
 }
 
-func findOutput(s []note) {
-	for _, note := range s {
-		fmt.Printf("%v found in: %v\non line: %v\ncontext: %v\n", os.Args[2], note.Path, note.LineNum, note.Context)
+func findOutput(c chan *note) {
+	for note := range c {
+		fmt.Printf("%v found in: %v\non line: %v\ncontext: %v\n\n", os.Args[2], note.Path, note.LineNum, note.Context)
 	}
+}
+
+func listNotes() {
+	if len(os.Args) == 3 {
+		listNote()
+	}
+
+	dir, err := exec.Command("ls", notesPath).Output()
+	if err != nil {
+		fmt.Println("list failed: ", err)
+	}
+	fmt.Printf("Notebooks:\n%v", string(dir))
+	os.Exit(0)
+}
+
+func listNote() {
+	dir := os.Args[2]
+
+	file, err := exec.Command("ls", notesPath+"/"+dir).Output()
+	if err != nil {
+		fmt.Println("list failed: ", err)
+	}
+
+	fmt.Printf("Notes in Notebook %v:\n%v", dir, string(file))
+	os.Exit(0)
+}
+
+func getNotes() {
 }
 
 type note struct {
