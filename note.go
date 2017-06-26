@@ -61,6 +61,8 @@ func checkFlags() {
 		listNotes()
 	case strings.Contains(flag, "--get") || strings.Contains(flag, "-g"):
 		getNotes()
+	case strings.Contains(flag, "--delete") || strings.Contains(flag, "-d"):
+		removeNote()
 	default:
 		noteHandler()
 	}
@@ -138,6 +140,28 @@ func listNote() {
 }
 
 func getNotes() {
+	switch len(os.Args) {
+	case 4:
+		filePath := notesPath + "/" + os.Args[2] + "/" + os.Args[3]
+		cmd := exec.Command("vim", filePath)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		if err := cmd.Run(); err != nil {
+			fmt.Println("get failed: ", err)
+			os.Exit(0)
+		}
+	default:
+		fmt.Println("get failed")
+		os.Exit(0)
+	}
+}
+
+func removeNote() {
+	if len(os.Args) == 3 {
+		fmt.Println(os.Args)
+	}
+
+	os.Exit(0)
 }
 
 type note struct {
