@@ -122,6 +122,7 @@ func listNotes() {
 	dir, err := exec.Command("ls", notesPath).Output()
 	if err != nil {
 		fmt.Println("list failed: ", err)
+		os.Exit(1)
 	}
 	fmt.Printf("Notebooks:\n%v", string(dir))
 	os.Exit(0)
@@ -133,6 +134,7 @@ func listNote() {
 	file, err := exec.Command("ls", notesPath+"/"+dir).Output()
 	if err != nil {
 		fmt.Println("list failed: ", err)
+		os.Exit(1)
 	}
 
 	fmt.Printf("Notes in Notebook %v:\n%v", dir, string(file))
@@ -152,16 +154,44 @@ func getNotes() {
 		}
 	default:
 		fmt.Println("get failed")
-		os.Exit(0)
+		os.Exit(1)
 	}
 }
 
 func removeNote() {
-	if len(os.Args) == 3 {
-		fmt.Println(os.Args)
+	if len(os.Args) < 3 {
+		fmt.Println("delete failed")
+		os.Exit(1)
 	}
 
-	os.Exit(0)
+	switch os.Args[2] {
+	case "notebook":
+		noteBook := os.Args[3]
+		if err := os.RemoveAll(notesPath + "/" + noteBook); err != nil {
+			fmt.Println("delete failed", err)
+			os.Exit(1)
+		}
+		fmt.Printf("removed notebook %v\n", noteBook)
+		os.Exit(0)
+	case "note":
+		note := os.Args[3]
+		out, err := exec.Command("find", notesPath, "-type", "f", "-name", note).Output()
+		if err != nil {
+			fmt.Println("delete failed: ", err)
+			os.Exit(1)
+		}
+
+		s := strings.TrimSuffix(string(out), "\n")
+		if err := os.Remove(s); err != nil {
+			fmt.Println("delete failed: ", err)
+			os.Exit(1)
+		}
+		fmt.Printf("removed note %v\n", note)
+		os.Exit(0)
+	default:
+		fmt.Println("delete failed")
+		os.Exit(1)
+	}
 }
 
 type note struct {
